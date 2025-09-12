@@ -1,0 +1,132 @@
+/* Input Form Specific Styles */
+
+.card-header {
+    border-bottom: 3px solid var(--primary-color);
+}
+
+.form-label {
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.form-text {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Knowledge URLs Section */
+#knowledgeUrls .input-group {
+    margin-bottom: 0.5rem;
+}
+
+.remove-url {
+    min-width: 42px;
+}
+
+.knowledge-url:invalid {
+    border-color: #dc3545;
+}
+
+/* Progress Card */
+#progressCard {
+    border-left: 4px solid var(--info-color);
+}
+
+#progressText {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+/* Error Alert */
+#errorAlert {
+    border-left: 4px solid var(--danger-color);
+}
+
+/* Form Validation */
+.was-validated .form-control:valid {
+    border-color: var(--secondary-color);
+}
+
+.was-validated .form-control:invalid {
+    border-color: var(--danger-color);
+}
+
+.valid-feedback {
+    color: var(--secondary-color);
+}
+
+.invalid-feedback {
+    color: var(--danger-color);
+}
+
+/* Submit Button States */
+#submitBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#submitBtn.processing {
+    position: relative;
+}
+
+#submitBtn.processing::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Input Group Enhancements */
+.input-group-text {
+    background-color: #f8f9fa;
+    border-color: #ddd;
+}
+
+/* Responsive Design */
+@media (max-width: 576px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Focus States */
+.form-control:focus,
+.btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+}
+
+/* Hover Effects */
+.remove-url:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+#addKnowledgeUrl:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
