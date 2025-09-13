@@ -1,7 +1,14 @@
-# 论文阅读与代码分析系统 - 架构设计
+# 论文阅读与代码分析系统 - Gradio架构设计
 
 ## 系统概述
-基于需求文档构建的论文阅读和代码分析系统，能够将学术论文转换为结构化的blog格式，并提供代码分析和知识库支持。
+基于Gradio构建的论文阅读和代码分析系统，提供步骤化的交互界面，能够将学术论文转换为结构化的blog格式，并提供代码分析和知识库支持。
+
+## Gradio架构优势
+- **简化开发**: 无需复杂的前后端分离，直接调用Python函数
+- **自动UI生成**: Gradio自动生成界面组件和交互逻辑  
+- **状态管理**: 使用Gradio.State组件管理会话状态
+- **实时反馈**: 内置进度条和状态更新机制
+- **步骤化处理**: 每个步骤对应一个独立的处理函数
 
 ## 核心模块设计
 
@@ -193,188 +200,241 @@ zip_path = processor.convert_pdf_to_tex_async(pdf_path)
 输出: 最终HTML Blog页面
 ```
 
-### 后端架构设计
+### Gradio状态管理
 
-#### 会话状态管理
+#### 项目状态结构
 ```python
-class SessionManager:
-    """管理用户处理会话的状态"""
-    
-    def create_project(pdf_url, git_url=None) -> str:
-        """创建新的处理项目"""
-    
-    def get_project_state(project_id) -> ProjectState:
-        """获取项目当前状态"""
-    
-    def update_step_status(project_id, step, status, result=None):
-        """更新步骤状态"""
-
 class ProjectState:
-    """项目状态数据结构"""
-    id: str
-    created_at: datetime
-    pdf_url: str
-    git_url: Optional[str]
+    """Gradio项目状态数据结构"""
+    def __init__(self):
+        self.project_id: str = str(uuid.uuid4())
+        self.created_at: datetime = datetime.now()
+        
+        # 输入参数
+        self.pdf_url: Optional[str] = None
+        self.git_url: Optional[str] = None
+        
+        # 处理结果
+        self.pdf_path: Optional[str] = None
+        self.git_path: Optional[str] = None
+        self.tex_path: Optional[str] = None
+        self.extracted_git_url: Optional[str] = None
+        self.knowledge_base: List[str] = []
+        self.code_analysis: Optional[dict] = None
+        self.paper_analysis: Optional[dict] = None
+        self.blog_content: Optional[str] = None
+        self.html_output: Optional[str] = None
+        
+        # 步骤状态
+        self.current_step: int = 0
+        self.step_status: Dict[int, str] = {}  # "pending", "running", "completed", "failed"
+        
+    def to_status_text(self) -> str:
+        """生成状态文本显示"""
+        status_lines = [
+            f"项目ID: {self.project_id}",
+            f"当前步骤: {self.current_step}/7",
+            f"PDF: {'✅' if self.pdf_path else '❌'}",
+            f"代码: {'✅' if self.git_path else '❌'}",
+            f"TEX: {'✅' if self.tex_path else '❌'}",
+            f"知识库: {len(self.knowledge_base)}条",
+        ]
+        return "\n".join(status_lines)
+```
+
+#### Pipeline核心函数设计
+```python
+# src/core/pipeline.py
+
+def create_project(pdf_url: str, git_url: str = "") -> Tuple[ProjectState, str]:
+    """步骤1: 项目初始化"""
+
+def download_pdf_step(state: ProjectState) -> Tuple[ProjectState, str]:
+    """步骤2A: 下载PDF"""
+
+def clone_git_step(state: ProjectState) -> Tuple[ProjectState, str]: 
+    """步骤2B: 克隆Git代码"""
+
+def pdf_to_tex_step(state: ProjectState) -> Tuple[ProjectState, str]:
+    """步骤3: PDF转TEX转换"""
+
+def search_knowledge_step(state: ProjectState) -> Tuple[ProjectState, str]:
+    """步骤4A: 自动搜索知识库"""
+
+def manage_knowledge_step(state: ProjectState, action: str, url: str) -> Tuple[ProjectState, str]:
+    """步骤4B: 手动管理知识库"""
+
+def analyze_code_step(state: ProjectState) -> Tuple[ProjectState, str]:
+    """步骤5: 代码分析"""
+
+def understand_paper_step(state: ProjectState) -> Tuple[ProjectState, str]:
+    """步骤6: 论文理解生成"""
+
+def render_blog_step(state: ProjectState) -> Tuple[ProjectState, str]:
+    """步骤7: HTML渲染输出"""
+```
+
+### Gradio界面设计
+
+#### 主界面布局结构
+```python
+with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
+    # 全局状态
+    project_state = gr.State(ProjectState())
     
-    # 步骤执行状态
-    steps: Dict[str, StepStatus]  # pending/running/completed/failed/skipped
+    gr.Markdown("# 📚 论文阅读与代码分析系统")
     
-    # 中间结果存储
-    pdf_path: Optional[str]
-    git_path: Optional[str]
-    tex_path: Optional[str]
-    knowledge_base: List[KnowledgeItem]
-    code_analysis: Optional[dict]
-    paper_analysis: Optional[dict]
-    blog_tex: Optional[str]
-    blog_html: Optional[str]
+    with gr.Row():
+        # 左侧：步骤控制面板
+        with gr.Column(scale=1):
+            gr.Markdown("## 🔄 处理步骤")
+            
+            # 步骤1: 项目初始化
+            with gr.Group():
+                gr.Markdown("### 1️⃣ 项目初始化")
+                pdf_url_input = gr.Textbox(label="PDF链接", placeholder="输入arXiv或其他PDF链接")
+                git_url_input = gr.Textbox(label="Git链接(可选)", placeholder="代码仓库链接")
+                init_btn = gr.Button("🚀 创建项目", variant="primary")
+            
+            # 步骤2: 资源下载
+            with gr.Group():
+                gr.Markdown("### 2️⃣ 资源下载")
+                with gr.Row():
+                    download_pdf_btn = gr.Button("📄 下载PDF", interactive=False)
+                    clone_git_btn = gr.Button("💻 克隆代码", interactive=False)
+            
+            # 步骤3: PDF转换
+            with gr.Group():
+                gr.Markdown("### 3️⃣ PDF转TEX")
+                pdf_to_tex_btn = gr.Button("🔄 转换PDF", interactive=False)
+            
+            # 步骤4: 知识库管理
+            with gr.Group():
+                gr.Markdown("### 4️⃣ 知识库管理")
+                search_knowledge_btn = gr.Button("🔍 自动搜索", interactive=False)
+                with gr.Row():
+                    knowledge_url_input = gr.Textbox(label="知识库链接", scale=3)
+                    add_knowledge_btn = gr.Button("➕ 添加", scale=1)
+                knowledge_list = gr.Textbox(label="已添加知识库", lines=3, interactive=False)
+            
+            # 步骤5-7: 分析和生成
+            with gr.Group():
+                gr.Markdown("### 5️⃣ 代码分析")
+                analyze_code_btn = gr.Button("🔬 分析代码", interactive=False)
+            
+            with gr.Group():
+                gr.Markdown("### 6️⃣ 论文理解") 
+                understand_paper_btn = gr.Button("📖 理解论文", interactive=False)
+            
+            with gr.Group():
+                gr.Markdown("### 7️⃣ HTML渲染")
+                render_blog_btn = gr.Button("🎨 生成Blog", interactive=False)
+        
+        # 右侧：结果显示面板
+        with gr.Column(scale=2):
+            gr.Markdown("## 📊 处理结果")
+            
+            # 状态显示
+            status_display = gr.Textbox(
+                label="项目状态",
+                lines=6,
+                value="等待项目初始化...",
+                interactive=False
+            )
+            
+            # 日志输出
+            log_display = gr.Textbox(
+                label="处理日志",
+                lines=10,
+                interactive=False
+            )
+            
+            # 文件下载
+            result_files = gr.File(
+                label="生成的文件",
+                file_count="multiple",
+                interactive=False
+            )
+            
+            # HTML预览
+            html_preview = gr.HTML(
+                label="Blog预览",
+                value="<p>等待生成内容...</p>"
+            )
 ```
 
-#### API端点设计
+#### 交互逻辑设计
 
-**项目管理**
-- `POST /api/project/create` - 创建处理项目
-- `GET /api/project/{id}/status` - 获取项目状态
-- `DELETE /api/project/{id}` - 删除项目
+**状态更新机制**
+- 每个步骤完成后自动更新ProjectState
+- 实时更新状态显示和按钮可用性
+- 错误处理和用户反馈
 
-**资源下载步骤**
-- `POST /api/project/{id}/download-pdf` - 下载PDF论文
-- `POST /api/project/{id}/clone-code` - 克隆Git代码
+**文件管理**
+- 自动保存中间结果到temp目录
+- 提供文件下载链接
+- 支持结果文件预览
 
-**内容处理步骤** 
-- `POST /api/project/{id}/pdf-to-tex` - PDF转TEX转换
-- `POST /api/project/{id}/search-knowledge` - 自动搜索知识库
-- `POST /api/project/{id}/analyze-code` - 代码分析
-
-**知识库管理**
-- `GET /api/project/{id}/knowledge` - 获取知识库列表
-- `POST /api/project/{id}/knowledge` - 添加知识库链接
-- `DELETE /api/project/{id}/knowledge/{item_id}` - 删除知识库项
-
-**内容生成步骤**
-- `POST /api/project/{id}/understand-paper` - 论文理解分析
-- `POST /api/project/{id}/render-blog` - HTML渲染输出
-
-#### 前端界面架构
-
-**主界面布局**
-```
-左侧导航面板:
-├── 1. 📝 项目初始化    [✅ 已完成]
-├── 2. 📥 下载资源      
-│   ├── 📄 PDF下载     [✅ 已完成]
-│   └── 💻 代码克隆     [⏸️ 跳过]
-├── 3. 🔄 PDF转TEX      [🔄 进行中]
-├── 4. 🔍 知识库管理    
-│   ├── 🤖 自动搜索     [⏳ 等待中]
-│   └── ✋ 手动管理     [随时可用]
-├── 5. 💡 代码分析      [⏳ 等待中]
-├── 6. 📖 论文理解      [⏳ 等待中]
-└── 7. 🎨 HTML渲染      [⏳ 等待中]
-
-右侧操作面板:
-├── 当前步骤控制区
-├── 参数配置区
-├── 实时进度显示
-├── 结果预览区
-└── 错误信息显示
-```
-
-**步骤状态可视化**
-- 实时状态更新 (WebSocket)
-- 进度条和百分比显示
-- 详细的日志输出
-- 错误信息和建议
-
-#### 技术实现特点
-
-**异步处理**
-- 长时间任务使用后台队列
-- WebSocket推送实时更新
-- 支持任务暂停和恢复
-
-**数据持久化**
-- 内存缓存 + 文件存储
-- 支持会话恢复
-- 自动清理过期数据
-
-**错误处理和恢复**
-- 每步独立的错误捕获
-- 支持从失败点重新开始
-- 详细的错误日志和用户指导
+**用户体验优化**
+- 步骤式引导，防止用户操作混乱
+- 清晰的状态反馈和错误提示  
+- 支持重复执行某个步骤
 
 ## 技术栈选择
 
-### 后端技术
-- **Python** - 主要开发语言
-- **FastAPI** - Web服务框架
-- **PyPDF2/pdfplumber** - PDF处理
+### 核心技术
+- **Python 3.8+** - 主要开发语言
+- **Gradio** - 交互式Web界面框架
+- **pdfdeal** - 高质量PDF转TEX转换
 - **GitPython** - Git仓库操作
 - **requests** - HTTP请求处理
+- **python-dotenv** - 环境变量管理
 
 ### AI/ML集成
-- **OpenAI API** - 用于论文理解和分析
-- **Claude Code (claude -p)** - 用于代码分析和伪代码生成
+- **OpenAI API** - 论文理解和分析
+- **Claude Code (claude -p)** - 代码分析和伪代码生成
 
-### 前端渲染
-- **Jinja2** - HTML模板引擎
-- **Mermaid.js** - 流程图生成
-- **Bootstrap/Tailwind** - CSS框架
+### 文档处理
+- **Jinja2** - HTML模板渲染
+- **Mermaid.js** - 流程图生成(集成到HTML模板中)
 
-## 项目结构
+## 项目结构(Gradio版)
 
 ```
 readpaperWithCode/
+├── gradio_app.py               # Gradio主应用入口
 ├── src/
 │   ├── core/                   # 核心业务逻辑
 │   │   ├── __init__.py
-│   │   ├── paper_processor.py  # 论文处理核心
-│   │   ├── code_analyzer.py    # 代码分析核心
-│   │   └── blog_generator.py   # Blog生成核心
-│   ├── processors/             # 各种处理器
+│   │   ├── pipeline.py         # 步骤化处理管道
+│   │   └── project_state.py    # 项目状态管理
+│   ├── processors/             # 保留现有处理器
 │   │   ├── __init__.py
-│   │   ├── pdf_processor.py    # PDF处理
-│   │   ├── tex_converter.py    # TEX转换
+│   │   ├── pdf_processor.py    # PDF处理(已实现)
 │   │   ├── git_processor.py    # Git处理
+│   │   ├── openai_processor.py # OpenAI分析
 │   │   └── knowledge_processor.py # 知识库处理
-│   ├── templates/              # HTML模板
-│   │   ├── base.html           # 基础模板
-│   │   ├── input_form.html     # 输入表单页面（PDF链接、Git链接、知识库外链）
-│   │   ├── blog.html           # 最终Blog展示页面
+│   ├── templates/              # HTML模板(简化)
+│   │   ├── blog.html           # Blog展示模板
 │   │   └── components/         # 组件模板
-│   │       ├── input_section.html  # 输入区域组件
-│   │       ├── progress.html       # 处理进度组件
-│   │       └── result.html         # 结果展示组件
-│   ├── utils/                  # 工具函数
-│   │   ├── __init__.py
-│   │   ├── file_utils.py
-│   │   ├── text_utils.py
-│   │   └── api_utils.py
-│   ├── api/                    # API接口
-│   │   ├── __init__.py
-│   │   ├── main.py
-│   │   └── routes/
-│   └── static/                 # 静态资源
-│       ├── css/
-│       │   ├── main.css        # 主样式文件
-│       │   └── input_form.css  # 输入表单样式
-│       ├── js/
-│       │   ├── main.js         # 主要JavaScript逻辑
-│       │   ├── input_handler.js # 输入处理逻辑（处理PDF链接、Git链接、知识库外链）
-│       │   └── ajax_utils.js   # AJAX请求工具
-│       └── images/             # 图片资源
-├── tests/                      # 测试文件
-├── docs/                       # 文档
-├── requirements.txt            # Python依赖
-├── config.py                   # 配置文件
-└── main.py                     # 应用入口
+│   └── utils/                  # 工具函数
+│       ├── __init__.py
+│       ├── file_utils.py
+│       └── text_utils.py
+├── temp/                       # 临时文件目录
+├── demo_pdf.py                 # 保留测试文件
+├── requirements.txt            # Python依赖(添加gradio)
+├── config.py                   # 配置文件(已存在)
+├── .env.example               # 环境变量模板(已存在)
+└── README.md                  # 使用说明
 ```
 
-## 工作流程
+## Gradio工作流程
 
-1. **输入阶段**：接收PDF链接和可选Git链接
-2. **解析阶段**：下载PDF，解析内容，提取Git信息
-3. **分析阶段**：代码分析（如有），知识库构建
-4. **理解阶段**：AI驱动的论文深度分析
-5. **生成阶段**：结构化Blog内容生成
-6. **渲染阶段**：HTML模板渲染和输出
+1. **界面启动**: `python gradio_app.py` 启动Gradio界面
+2. **项目初始化**: 用户输入PDF和Git链接，创建ProjectState
+3. **步骤化处理**: 用户点击按钮逐步执行7个处理步骤
+4. **状态管理**: Gradio.State自动管理项目状态和中间结果
+5. **实时反馈**: 界面实时显示处理进度和结果
+6. **文件下载**: 提供生成文件的下载链接
+7. **HTML预览**: 在界面中直接预览生成的Blog内容
