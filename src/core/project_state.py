@@ -37,7 +37,7 @@ class ProjectState:
     def __post_init__(self):
         """初始化所有步骤状态为pending"""
         if not self.step_status:
-            for i in range(1, 8):  # 7个步骤
+            for i in range(1, 9):  # 8个步骤
                 self.step_status[i] = "pending"
                 self.step_messages[i] = ""
     
@@ -52,14 +52,15 @@ class ProjectState:
         """生成状态文本显示"""
         status_lines = [
             f"📋 项目ID: {self.project_id[:8]}...",
-            f"🔄 当前步骤: {self.current_step}/7",
+            f"🔄 当前步骤: {self.current_step}/8",
             f"📄 PDF: {'✅ ' + (self.pdf_path.split('/')[-1] if self.pdf_path else '') if self.pdf_path else '❌'}",
             f"💻 代码: {'✅ ' + (self.git_path.split('/')[-1] if self.git_path else '') if self.git_path else '❌'}",
             f"📝 TEX: {'✅ ' + (self.tex_path.split('/')[-1] if self.tex_path else '') if self.tex_path else '❌'}",
             f"🔍 知识库: {len(self.knowledge_base)}条",
             f"📊 代码分析: {'✅' if self.code_analysis else '❌'}",
             f"📖 论文理解: {'✅' if self.paper_analysis else '❌'}",
-            f"🎨 Blog生成: {'✅' if self.blog_content else '❌'}",
+            f"📖 Blog生成: {'✅' if self.blog_content else '❌'}",
+            f"🎨 Html渲染: {'✅' if self.html_output else '❌'}",
         ]
         return "\n".join(status_lines)
     
@@ -85,10 +86,11 @@ class ProjectState:
             4: "知识库管理",
             5: "代码分析",
             6: "论文理解",
-            7: "HTML渲染"
+            7: "Blog生成",
+            8: "HTML渲染"
         }
         
-        for step_num in range(1, 8):
+        for step_num in range(1, 9):
             status = self.step_status.get(step_num, "pending")
             emoji = self.get_step_status_emoji(step_num)
             name = step_names.get(step_num, f"步骤{step_num}")
@@ -114,7 +116,9 @@ class ProjectState:
             return self.git_path is not None
         elif step_num == 6:  # 论文理解 - 需要TEX文件
             return self.tex_path is not None
-        elif step_num == 7:  # HTML渲染 - 需要论文理解完成
-            return self.step_status.get(6) == "completed" and self.blog_content
+        elif step_num == 7:  # Blog生成 - 需要论文理解完成
+            return self.step_status.get(6) == "completed"
+        elif step_num == 8:  # HTML渲染 - 需要论文理解完成
+            return self.step_status.get(7) == "completed"
         
         return False

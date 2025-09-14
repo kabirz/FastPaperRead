@@ -23,7 +23,8 @@ def update_ui_state(state: ProjectState) -> Tuple:
         gr.update(interactive=bool(state.tex_path)),        # search_knowledge_btn
         gr.update(interactive=state.can_execute_step(5)),   # analyze_code_btn
         gr.update(interactive=state.can_execute_step(6)),   # understand_paper_btn
-        gr.update(interactive=state.can_execute_step(7)),   # render_blog_btn
+        gr.update(interactive=state.can_execute_step(7)),   # on_generate_blog
+        gr.update(interactive=state.can_execute_step(8)),   # render_blog_btn
         
         # 状态显示
         state.to_status_text(),                             # status_display
@@ -32,7 +33,6 @@ def update_ui_state(state: ProjectState) -> Tuple:
         get_result_files(state),                            # result_files
         get_html_preview(state)                             # html_preview
     )
-
 
 def get_result_files(state: ProjectState) -> List[str]:
     """获取结果文件列表"""
@@ -110,6 +110,12 @@ def on_understand_paper(current_state: ProjectState):
     return new_state, message, *update_ui_state(new_state)
 
 
+def on_generate_blog(current_state: ProjectState):
+    """Blog生成"""
+    new_state, message = pipeline.generate_blog_step(current_state)
+    return new_state, message, *update_ui_state(new_state)
+
+
 def on_render_blog(current_state: ProjectState):
     """渲染Blog回调"""
     new_state, message = pipeline.render_blog_step(current_state)
@@ -177,7 +183,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
                     placeholder="暂无知识库链接"
                 )
             
-            # 步骤5-7: 分析和生成
+            # 步骤5-8: 分析和生成
             with gr.Group():
                 gr.Markdown("### 5️⃣ 代码分析")
                 analyze_code_btn = gr.Button("🔬 分析代码", interactive=False)
@@ -187,8 +193,12 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
                 understand_paper_btn = gr.Button("📖 理解论文", interactive=False)
             
             with gr.Group():
-                gr.Markdown("### 7️⃣ HTML渲染")
-                render_blog_btn = gr.Button("🎨 生成Blog", interactive=False)
+                gr.Markdown("### 7️⃣ 生成Blog")
+                generate_blog_btn = gr.Button("🎨 生成Blog", interactive=False)
+        
+            with gr.Group():
+                gr.Markdown("### 8️⃣ HTML渲染")
+                render_blog_btn = gr.Button("♥️ HTML渲染", interactive=False)
         
         # 右侧：结果显示面板
         with gr.Column(scale=2):
@@ -239,7 +249,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )
@@ -250,7 +260,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )
@@ -261,7 +271,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )
@@ -272,7 +282,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )
@@ -283,7 +293,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )
@@ -294,7 +304,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output, knowledge_url_input,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )
@@ -305,7 +315,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )
@@ -316,7 +326,18 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
+            status_display, log_display, knowledge_list, result_files, html_preview
+        ]
+    )
+
+    generate_blog_btn.click(
+        fn=on_generate_blog,
+        inputs=[project_state],
+        outputs=[
+            project_state, message_output,
+            download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )
@@ -327,7 +348,7 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
-            analyze_code_btn, understand_paper_btn, render_blog_btn,
+            analyze_code_btn, understand_paper_btn, generate_blog_btn, render_blog_btn,
             status_display, log_display, knowledge_list, result_files, html_preview
         ]
     )

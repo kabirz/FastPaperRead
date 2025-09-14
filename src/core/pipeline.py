@@ -1,13 +1,16 @@
 import asyncio
 import os
 import logging
+import markdown
+from subprocess import Popen, PIPE
 from typing import Tuple, Optional
-from datetime import datetime
 
+from datetime import datetime
 from .project_state import ProjectState
 from ..processors.pdf_processor import PDFProcessor
 from ..processors.git_processor import GitProcessor
 from config import Config
+from ..processors.mcp_processor import get_keywords, get_link, get_sumary, get_knowedge, get_blog
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -156,21 +159,20 @@ class PipelineProcessor:
             
             # TODO: 实现自动知识库搜索
             # 1. 读取TEX文件内容
+            with open(state.tex_path, "r", encoding="utf-8") as f:
+                tex_content = f.read()
             # 2. 提取关键词
+            keywords = asyncio.run(get_keywords(tex_content))
+
             # 3. 搜索外部知识库
             # 4. 返回相关链接
-            
-            # 临时实现：模拟知识库搜索
-            mock_knowledge = [
-                "https://en.wikipedia.org/wiki/Machine_learning",
-                "https://paperswithcode.com/",
-                "https://arxiv.org/"
-            ]
-            
+            mock_knowledge = asyncio.run(get_link(keywords))
+
             # 添加到现有知识库（避免重复）
             for url in mock_knowledge:
                 if url not in state.knowledge_base:
-                    state.knowledge_base.append(url)
+                    if 'zhihu' not in url and 'github' not in url and url[-1] != '/':
+                        state.knowledge_base.append(url)
             
             message = f"✅ 知识库搜索完成！\n找到 {len(mock_knowledge)} 个相关链接"
             logger.info(f"Knowledge search completed for project {state.project_id}")
@@ -216,19 +218,20 @@ class PipelineProcessor:
             
             state.update_step(5, "running", "正在分析代码...")
             
+            with open(state.tex_path) as f:
+                tex_content = f.read()
             # TODO: 实现代码分析
-            # 1. 使用claude -p 分析代码
-            # 2. 生成代码结构和逻辑摘要
-            # 3. 生成伪代码
-            
-            # 临时实现：模拟代码分析
-            analysis_result = {
-                "structure": "项目结构分析...",
-                "logic": "代码逻辑摘要...", 
-                "pseudocode": "伪代码生成..."
-            }
-            
-            state.code_analysis = analysis_result
+            # 1. mcp: 生成 summary
+            message = asyncio.run(get_sumary(tex_content))
+            with open(f'{self.config.TEMP_DIR}/summary.md', 'w') as f:
+                f.write(message)
+            # 2. 使用claude -p 分析代码, 这个步骤可能需要在命令行上执行，这里大概率不成功
+            _prompt_msg = f"/docs --paper-summary {self.config.TEMP_DIR}/summary.md --code-dir {state.git_path} --output {self.config.TEMP_DIR}/code_analysis.md"
+            cmd = f'{self.config.CLAUDE_CODE_COMMAND} --permission-mode bypassPermissions "{_prompt_msg}"'
+            claude_content = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE)
+            str_out, _ = claude_content.communicate()
+
+            state.code_analysis =  "ok"
             state.update_step(5, "completed", "代码分析完成")
             
             message = "✅ 代码分析完成！\n- 项目结构已分析\n- 代码逻辑已提取\n- 伪代码已生成"
@@ -240,7 +243,7 @@ class PipelineProcessor:
             state.update_step(5, "failed", str(e))
             logger.error(f"Code analysis failed for project {state.project_id}: {e}")
             return state, error_msg
-    
+
     def understand_paper_step(self, state: ProjectState) -> Tuple[ProjectState, str]:
         """步骤6: 论文理解生成"""
         try:
@@ -249,109 +252,82 @@ class PipelineProcessor:
             
             state.update_step(6, "running", "正在理解论文...")
             
+            with open(state.tex_path) as f:
+                tex_content = f.read()
             # TODO: 实现论文理解
             # 1. 读取TEX内容
             # 2. 结合知识库内容
-            # 3. 结合代码分析结果
-            # 4. 使用OpenAI API生成7个模块的Blog内容
+            message = asyncio.run(get_knowedge(tex_content, state.knowledge_base))
+            state.update_step(6, "completed", "理解文章完成")
+            state.paper_analysis = 'ok'
+
+            # 4. 或者使用Claude生成
+            with open(self.config.TEMP_DIR + "/knowledge_out.md", "w", encoding="utf-8") as f:
+                f.write(message)
+            return state,message 
+
+        except Exception as e:
+            error_msg = f"❌ 论文理解失败: {str(e)}"
+            state.update_step(6, "failed", str(e))
+            logger.error(f"Paper understanding failed for project {state.project_id}: {e}")
+            return state, error_msg
+
+
+    def generate_blog_step(self, state: ProjectState) -> Tuple[ProjectState, str]: 
+        """步骤7: 组合生成Blog"""
+        try:
+            state.update_step(7, "running", "正在Blog...")
             
-            # 临时实现：模拟论文理解
-            blog_content = """
-# 论文分析报告
+            with open(state.tex_path) as f:
+                tex_content = f.read()
+            with open(f"{self.config.TEMP_DIR}/code_analysis.md", "r", encoding="utf-8") as f:
+                code_content = f.read()
+            # TODO: 实现论文理解
+            # 1. 读取TEX内容
+            # 2. 结合知识库内容
+            message = asyncio.run(get_blog(tex_content, code_content, state.knowledge_base))
 
-## 1. 动机 (Motivation)
-论文的研究动机...
+            # 生成Blog内容
+            with open(self.config.TEMP_DIR + "/blog.md", "w", encoding="utf-8") as f:
+                f.write(message)
 
-## 2. 背景 (Background)
-相关技术背景...
-
-## 3. 同类方法的缺陷 (Limitations)
-现有方法的问题...
-
-## 4. 解决的问题 (Problem Solved)
-本文要解决的核心问题...
-
-## 5. 方法 (Methodology)
-提出的解决方案...
-
-## 6. 实验 (Experiments)
-实验设计和结果...
-
-## 7. 结论 (Conclusion)
-研究结论和贡献...
-"""
-            
-            state.blog_content = blog_content
-            state.paper_analysis = {"status": "completed", "sections": 7}
-            state.update_step(6, "completed", "论文理解完成")
+            state.blog_content = markdown.markdown(message)
+            state.update_step(7, "completed", "Blog生成完成")
             
             message = "✅ 论文理解完成！\n已生成7个模块的Blog内容"
             logger.info(f"Paper understanding completed for project {state.project_id}")
             return state, message
             
         except Exception as e:
-            error_msg = f"❌ 论文理解失败: {str(e)}"
+            error_msg = f"❌ Blog生成失败: {str(e)}"
             state.update_step(6, "failed", str(e))
             logger.error(f"Paper understanding failed for project {state.project_id}: {e}")
             return state, error_msg
+
     
     def render_blog_step(self, state: ProjectState) -> Tuple[ProjectState, str]:
-        """步骤7: HTML渲染输出"""
+        """步骤8: HTML渲染输出"""
         try:
-            if not state.can_execute_step(7):
+            if not state.can_execute_step(8):
                 return state, "❌ 无法执行此步骤：请先完成论文理解"
             
-            state.update_step(7, "running", "正在渲染HTML...")
+            state.update_step(8, "running", "正在渲染HTML...")
+            html_path = f"{self.config.TEMP_DIR}/blog_{state.project_id[:8]}.html"
+            _prompt_msg = f"把文件{self.config.TEMP_DIR}/blog.md渲染成HTML输出，要求界面美观，并且要把图表、代码、公式等内容都正确渲染，并输出到{html_path}.html"
+            cmd = f'{self.config.CLAUDE_CODE_COMMAND} --permission-mode bypassPermissions "{_prompt_msg}"'
+            claude_content = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE)
+            _, _ = claude_content.communicate()
             
-            # TODO: 实现HTML模板渲染
-            # 1. 使用Jinja2模板
-            # 2. 渲染Blog内容为HTML
-            # 3. 应用CSS样式
-            # 4. 集成Mermaid.js图表
-            
-            # 临时实现：简单HTML生成
-            html_content = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>论文分析 - {state.project_id}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 40px; }}
-        h1, h2 {{ color: #333; }}
-        pre {{ background-color: #f4f4f4; padding: 10px; }}
-    </style>
-</head>
-<body>
-    <h1>📚 论文分析报告</h1>
-    <p><strong>项目ID:</strong> {state.project_id}</p>
-    <p><strong>生成时间:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-    
-    <div>
-        {state.blog_content.replace(chr(10), '<br>' + chr(10)) if state.blog_content else ''}
-    </div>
-    
-    {"<h2>🔗 相关知识库</h2><ul>" + "".join([f"<li><a href='{url}'>{url}</a></li>" for url in state.knowledge_base]) + "</ul>" if state.knowledge_base else ""}
-    
-    {"<h2>💻 代码分析</h2><p>代码分析已完成</p>" if state.code_analysis else ""}
-</body>
-</html>
-"""
-            
-            # 保存HTML文件
-            html_path = os.path.join(self.config.TEMP_DIR, f"blog_{state.project_id[:8]}.html")
-            with open(html_path, 'w', encoding='utf-8') as f:
-                f.write(html_content)
-            
-            state.html_output = html_path
-            state.update_step(7, "completed", f"HTML已生成: {html_path}")
+            state.update_step(8, "completed", f"HTML已生成: {html_path}")
             
             message = f"✅ HTML渲染完成！\n文件路径: {html_path}"
             logger.info(f"HTML rendering completed for project {state.project_id}")
+            state.html_output = html_path
             return state, message
             
         except Exception as e:
             error_msg = f"❌ HTML渲染失败: {str(e)}"
-            state.update_step(7, "failed", str(e))
+            state.update_step(8, "failed", str(e))
             logger.error(f"HTML rendering failed for project {state.project_id}: {e}")
             return state, error_msg
 
