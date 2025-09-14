@@ -124,24 +124,24 @@ python gradio_app.py
 - 点击"🔄 转换PDF"将PDF转换为高质量TEX格式
 - 系统会自动提取Git链接和相关资源
 
-#### 步骤4：双路处理启动
-**路径1 - 论文深度搜索器:**
-- 点击"🔍 启动深度搜索"基于论文内容搜索外部知识库
-- 自动补充学术背景和相关工作
+#### 步骤4：知识库管理
+- 点击"🔍 自动搜索"通过web search引擎搜索相关论文
+- 手动添加/删除知识库链接
 
-**路径2 - 项目深度理解器:**  
-- 点击"🔬 启动项目理解"基于论文索引分析代码项目
-- 自动生成代码知识库和实现细节
+#### 步骤5：代码分析
+- 点击"🔬 分析代码"对代码仓库进行深度分析
+- 基于论文索引理解项目结构和实现细节
 
-#### 步骤5：DeepResearch分析
-- 点击"🧠 启动DeepResearch"融合三个知识源：
-  - 论文TEX内容
-  - 外部知识库
-  - 代码知识库
-- 生成结构化的7模块报告
+#### 步骤6：论文理解
+- 点击"📖 理解论文"生成AI驱动的论文分析
+- 融合论文内容、外部知识库和代码分析结果
 
-#### 步骤6：强可读性渲染
-- 点击"🎨 生成HTML"使用专业模板渲染
+#### 步骤7：生成Blog
+- 点击"🎨 生成Blog"创建最终的结构化输出
+- 生成包含7个标准模块的专业论文解读报告
+
+#### 步骤8：HTML渲染
+- 点击"📄 渲染HTML"生成美观的HTML页面
 - 在界面中直接预览或下载HTML文件
 - 提供优秀的阅读体验
 
@@ -187,8 +187,7 @@ readpaperWithCode/
 │   │   ├── __init__.py
 │   │   ├── pdf_processor.py    # PDF处理(已实现)
 │   │   ├── git_processor.py    # Git处理
-│   │   ├── openai_processor.py # OpenAI分析
-│   │   └── knowledge_processor.py # 知识库处理
+│   │   └── mcp_processor.py    # MCP处理分析
 │   ├── templates/              # HTML模板(简化)
 │   │   ├── blog.html           # Blog展示模板
 │   │   └── components/         # 组件模板
@@ -212,6 +211,11 @@ readpaperWithCode/
 |--------|------|--------|
 | `OPENAI_API_KEY` | OpenAI API密钥 | 必需 |
 | `PDFDEAL_API_KEY` | PDFDeal API密钥 | 必需 |
+| `SERVER_GET_KEYWORD` | 获取关键字url mcp 服务 | 必需 |
+| `SERVER_SEARCH_LINK` |  huoq website搜索链接| 必需 |
+| `SERVER_SUMMARY` | 获取摘要mcp服务 | 必需 |
+| `SERVER_KNOWLEDGE` | 获取知识库mcp服务 | 必需 |
+| `SERVER_GEN_BLOG` | 生成摘要mcp服务 | 必需 |
 | `TEMP_DIR` | 临时文件目录 | `temp/` |
 | `DEBUG` | 调试模式 | `true` |
 | `CLAUDE_CODE_COMMAND` | Claude Code命令 | `claude -p` |
