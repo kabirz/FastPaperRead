@@ -10,7 +10,7 @@ from .project_state import ProjectState
 from ..processors.pdf_processor import PDFProcessor
 from ..processors.git_processor import GitProcessor
 from config import Config
-from ..processors.mcp_processor import get_keywords, get_link, get_sumary, get_knowedge, get_blog
+from ..processors.mcp_processor import get_keywords, get_link, get_summary, get_knowedge, get_blog
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
