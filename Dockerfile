@@ -30,4 +30,4 @@ RUN mkdir -p uploads output temp
 EXPOSE 7860
 
 # 设置默认命令
-CMD ["python", "gradio_app.py"]
+# CMD ["python", "gradio_app.py"]
