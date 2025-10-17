@@ -222,7 +222,7 @@ class PipelineProcessor:
                 tex_content = f.read()
             # TODO: 实现代码分析
             # 1. mcp: 生成 summary
-            message = asyncio.run(get_sumary(tex_content))
+            message = asyncio.run(get_summary(tex_content))
             with open(f'{self.config.TEMP_DIR}/summary.md', 'w') as f:
                 f.write(message)
             # 2. 使用claude -p 分析代码, 这个步骤可能需要在命令行上执行，这里大概率不成功
