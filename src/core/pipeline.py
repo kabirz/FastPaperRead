@@ -223,11 +223,14 @@ class PipelineProcessor:
             # TODO: 实现代码分析
             # 1. mcp: 生成 summary
             message = asyncio.run(get_summary(tex_content))
-            with open(f'{self.config.TEMP_DIR}/summary.md', 'w') as f:
+            state.summary_path = f'{self.config.TEMP_DIR}/summary_{hash(state.pdf_url)}.md'
+            state.code_analysis_path = f'{self.config.TEMP_DIR}/code_analysis_{hash(state.pdf_url)}.md'
+            with open(state.summary_path, 'w') as f:
                 f.write(message)
             # 2. 使用claude -p 分析代码, 这个步骤可能需要在命令行上执行，这里大概率不成功
-            _prompt_msg = f"/docs --paper-summary {self.config.TEMP_DIR}/summary.md --code-dir {state.git_path} --output {self.config.TEMP_DIR}/code_analysis.md"
-            cmd = f'{self.config.CLAUDE_CODE_COMMAND} --permission-mode bypassPermissions "{_prompt_msg}"'
+            _prompt_msg = f"/docs --paper-summary {state.summary_path} --code-dir {state.git_path} --output {state.code_analysis_path}"
+            cmd = f'{self.config.CLAUDE_CODE_COMMAND} --permission-mode acceptEdits "{_prompt_msg}"'
+            logger.info(f'Claude: {cmd}')
             claude_content = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE)
             str_out, _ = claude_content.communicate()
 
@@ -262,7 +265,8 @@ class PipelineProcessor:
             state.paper_analysis = 'ok'
 
             # 4. 或者使用Claude生成
-            with open(self.config.TEMP_DIR + "/knowledge_out.md", "w", encoding="utf-8") as f:
+            state.knowledge_path = f'{self.config.TEMP_DIR}/knowledge_out_{hash(state.pdf_url)}.md'
+            with open(state.knowledge_path, "w", encoding="utf-8") as f:
                 f.write(message)
             return state,message 
 
@@ -280,15 +284,18 @@ class PipelineProcessor:
             
             with open(state.tex_path) as f:
                 tex_content = f.read()
-            with open(f"{self.config.TEMP_DIR}/code_analysis.md", "r", encoding="utf-8") as f:
+            with open(state.code_analysis_path, "r", encoding="utf-8") as f:
                 code_content = f.read()
+            with open(state.knowledge_path) as f:
+                knowledge_out = f.read()
             # TODO: 实现论文理解
             # 1. 读取TEX内容
             # 2. 结合知识库内容
-            message = asyncio.run(get_blog(tex_content, code_content, state.knowledge_base))
+            message = asyncio.run(get_blog(tex_content, code_content, knowledge_out))
 
             # 生成Blog内容
-            with open(self.config.TEMP_DIR + "/blog.md", "w", encoding="utf-8") as f:
+            state.blog_path = f'{self.config.TEMP_DIR}/blog_{hash(state.pdf_url)}.md'
+            with open(state.blog_path, "w", encoding="utf-8") as f:
                 f.write(message)
 
             state.blog_content = markdown.markdown(message)
@@ -313,8 +320,9 @@ class PipelineProcessor:
             
             state.update_step(8, "running", "正在渲染HTML...")
             html_path = f"{self.config.TEMP_DIR}/blog_{state.project_id[:8]}.html"
-            _prompt_msg = f"把文件{self.config.TEMP_DIR}/blog.md渲染成HTML输出，要求界面美观，并且要把图表、代码、公式等内容都正确渲染，并输出到{html_path}.html"
-            cmd = f'{self.config.CLAUDE_CODE_COMMAND} --permission-mode bypassPermissions "{_prompt_msg}"'
+            _prompt_msg = f"把文件{state.blog_path}渲染成HTML输出，要求界面美观，并且要把图表、代码、公式等内容都正确渲染，如果图表有不正确的地方要改正并输出到{html_path}"
+            cmd = f'{self.config.CLAUDE_CODE_COMMAND} --permission-mode acceptEdits "{_prompt_msg}"'
+            logger.info(f'Claude: {cmd}')
             claude_content = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE)
             _, _ = claude_content.communicate()
             

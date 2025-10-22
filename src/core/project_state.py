@@ -20,6 +20,12 @@ class ProjectState:
     pdf_path: Optional[str] = None
     git_path: Optional[str] = None
     tex_path: Optional[str] = None
+    summary_path: Optional[str] = None
+    code_analysis_path: Optional[str] = None
+    knowledge_path: Optional[str] = None
+    blog_path: Optional[str] = None
+
+
     extracted_git_url: Optional[str] = None
     
     # 知识库和分析结果

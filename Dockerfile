@@ -1,5 +1,5 @@
 # 使用Python 3.11作为基础镜像
-FROM python:3.11-slim
+FROM docker.1ms.run/python:3.11-slim
 
 # 设置工作目录
 WORKDIR /app
@@ -15,19 +15,17 @@ RUN apt-get update && apt-get install -y  git npm && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/kabirz/FastPaperRead /tmp/repo && \
     cp -fr /tmp/repo/* . && \
+    cp -fr /tmp/repo/.claude . && \
     rm -fr /tmp/repo
 
 # 安装 claude code
 RUN npm install -g @anthropic-ai/claude-code
 
 # 安装Python依赖
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt -i http://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com
 
 # 创建必要的目录
 RUN mkdir -p uploads output temp
 
 # 暴露端口（如果需要运行Gradio应用）
 EXPOSE 7860
-
-# 设置默认命令
-# CMD ["python", "gradio_app.py"]
