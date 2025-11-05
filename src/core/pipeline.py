@@ -4,6 +4,10 @@ import logging
 import markdown
 from subprocess import Popen, PIPE
 from typing import Tuple, Optional
+import time
+import secrets
+import requests
+import pandas as pd
 
 from datetime import datetime
 from .project_state import ProjectState
@@ -25,7 +29,7 @@ class PipelineProcessor:
         self.pdf_processor = PDFProcessor()
         self.git_processor = GitProcessor()
     
-    def create_project(self, pdf_url: str, git_url: str = "") -> Tuple[ProjectState, str]:
+    def create_project(self, pdf_url: str, access_key: str, client_name: str, git_url: str = "") -> Tuple[ProjectState, str]:
         """步骤1: 项目初始化"""
         try:
             state = ProjectState()
@@ -36,10 +40,42 @@ class PipelineProcessor:
             if not state.pdf_url:
                 raise ValueError("PDF链接不能为空")
             
+            if all([access_key, client_name]):
+                url = "https://openapi.dp.tech/openapi/v1/api/integral/consume"
+                headers = {
+                    'accessKey': access_key,
+                    'x-app-key': client_name,
+                    'Content-Type': 'application/json'
+                }
+                payload = {
+                    'bizNo': int(f'{int(time.time())}{secrets.randbits(16)}'),
+                    'changeType': 0,
+                    'eventValue': self.config.EVENTVALUE,
+                    'skuId': 10022,
+                    'scene': 'appCustomizeCharge'
+                }
+                _time = str(datetime.now())
+                resp = requests.post(url, headers=headers, json=payload, timeout=10)
+                result = resp.json()
+                if result['code'] == 0:
+                    pass
+                    data = [
+                        {'project': state.project_id, 'client_name': client_name, 'time': _time, 'id': result['data']['id'], 'eventValue': payload['eventValue'], 'bizNo': payload['bizNo']}
+                    ]
+                    df = pd.DataFrame(data=data)
+                    if os.path.isfile(self.config.BILL_CSV_PATH):
+                        df.to_csv(self.config.BILL_CSV_PATH, mode='a', index=False, header=False)
+                elif result['code'] == 170603:
+                    raise ValueError(result['error']['msg'])
+                else:
+                    raise ValueError(result['error'])
+            else:
+                raise ValueError("未登录，请先登录!!")
+            
             # 更新步骤状态
             state.update_step(1, "completed", f"项目已创建，PDF: {state.pdf_url}")
             
-            message = f"✅ 项目创建成功！\n项目ID: {state.project_id}\nPDF: {state.pdf_url}"
+            message = f"✅ 项目创建成功！消耗{payload['eventValue']}光子\n项目ID: {state.project_id}\nPDF: {state.pdf_url}"
             if state.git_url:
                 message += f"\nGit: {state.git_url}"
             

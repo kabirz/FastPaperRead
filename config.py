@@ -22,6 +22,8 @@ class Config:
     
     # Claude Code 配置
     CLAUDE_CODE_COMMAND: str = os.getenv("CLAUDE_CODE_COMMAND", "claude -p")
+    BILL_CSV_PATH: str = os.getenv("BILL_CSV_PATH", "/data/bill.csv")
+    EVENTVALUE: int = int(os.getenv("EVENTVALUE", "1"))
     
     @classmethod
     def ensure_directories(cls):

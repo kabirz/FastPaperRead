@@ -60,11 +60,17 @@ def get_html_preview(state: ProjectState) -> str:
     else:
         return "<p>等待生成内容...</p>"
 
-
+def echo(val: str):
+    return val
 # Gradio界面回调函数
-def on_create_project(pdf_url: str, git_url: str, current_state: ProjectState):
+def on_create_project(pdf_url: str, git_url: str, current_state: ProjectState, flag: str, req: gr.Request):
     """项目初始化回调"""
-    new_state, message = pipeline.create_project(pdf_url, git_url)
+    access_key = req.cookies.get('appAccessKey') or ''
+    client_name = req.cookies.get('clientName') or ''
+    if flag != '确认':
+        new_state, message = ProjectState(), '已取消'
+    else:
+        new_state, message = pipeline.create_project(pdf_url, access_key, client_name, git_url)
     return new_state, message, *update_ui_state(new_state)
 
 
@@ -151,7 +157,8 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
                     lines=1,
                     interactive=True
                 )
-                init_btn = gr.Button("🚀 创建项目", variant="primary", size="lg")
+                init_btn = gr.Button(f"🚀 创建项目(消耗{config.EVENTVALUE}光子)", variant="primary", size="lg")
+                confirm_result = gr.Text(visible=False)
             
             # 步骤2: 资源下载
             with gr.Group():
@@ -241,11 +248,28 @@ with gr.Blocks(title="论文阅读与代码分析系统", theme="soft") as app:
                     value="<p>等待生成内容...</p>",
                     show_label=False
                 )
-    
+
+    prompt_msg = f'您正在发起一个需要消耗 {config.EVENTVALUE}光子的操作。请确认是否继续：\\n确认：继续执行该操作，扣除{config.EVENTVALUE}光子。\\n取消：中止该操作，不消耗光子。'
+    js_code = '''function BillConfirm(input) {
+    if (confirm("%s")) {
+        return "确认";
+    } else {
+        return "取消";
+    }
+}
+'''%(prompt_msg)
+    print(js_code)
+
     # 绑定事件处理
     init_btn.click(
+        fn=echo,
+        inputs=confirm_result,
+        outputs=confirm_result,
+        js=js_code
+
+    ).then(
         fn=on_create_project,
-        inputs=[pdf_url_input, git_url_input, project_state],
+        inputs=[pdf_url_input, git_url_input, project_state, confirm_result],
         outputs=[
             project_state, message_output,
             download_pdf_btn, clone_git_btn, pdf_to_tex_btn, search_knowledge_btn,
